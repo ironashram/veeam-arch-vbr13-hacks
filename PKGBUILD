@@ -1,0 +1,118 @@
+# Maintainer: ironashram
+# Contributors: krnlsoft
+# Contributors: theokonos
+# Contributors: Ted Sadler
+# Contributors: dekart811
+# Contributors: CodeImp
+
+pkgname=veeam
+pkgver=13.0.1.94
+pkgrel=1
+pkgdesc="Veeam Agent for Linux"
+arch=('x86_64')
+url=https://repository.veeam.com/backup/linux/agent
+install=${pkgname}.install
+license=('custom')
+depends=('ncurses' 'lvm2' 'fuse' 'mlocate' 'veeamblksnap-dkms')
+source=( "veeam-13.0.1.94-1.el10.x86_64.rpm" "veeam-libs-13.0.1.94-1.x86_64.rpm" )
+sha256sums=('SKIP'
+            'SKIP')
+noextract=("$pkgname-$pkgver-1.el10.x86_64.rpm")
+backup=('etc/veeam/veeam.ini' 'usr/share/veeam/lpb_scheme.sql' 'usr/share/veeam/db_upgrade.sql' 'usr/share/veeam/db_scheme.sql' 'var/lib/veeam/veeam_db.sqlite' 'var/lib/veeam/veeam_db.sqlite-shm' 'var/lib/veeam/veeam_db.sqlite-wal')
+
+package() {
+  bsdtar -xf $pkgname-$pkgver-1.el10.x86_64.rpm -C "$pkgdir" -s /sbin/bin/ -s '|lib/systemd|usr/lib/systemd|'
+  bsdtar -xf $pkgname-libs-$pkgver-1.x86_64.rpm -C "$pkgdir" -s /sbin/bin/ -s '|lib/systemd|usr/lib/systemd|'
+  sed -i -e 's|/var/run|/run|' -e 's|/sbin|/bin|' "$pkgdir"/usr/lib/systemd/system/veeamservice.service
+  rm -rf "$pkgdir"/usr/lib/.build-id/
+  install -d  "$pkgdir"/usr/share/licenses/$pkgname/
+  ln -s ../../doc/$pkgname/EULA "$pkgdir"/usr/share/licenses/$pkgname/
+  ln -s ../../doc/$pkgname/3rdPartyNotices.txt "$pkgdir"/usr/share/licenses/$pkgname/
+
+  # Create fake dnf wrapper for Veeam compatibility (expects RHEL-like package manager)
+  install -d "$pkgdir"/usr/local/bin
+  cat > "$pkgdir"/usr/local/bin/dnf << 'EOF'
+#!/bin/bash
+# Fake dnf for Veeam compatibility on Arch Linux
+case "$1" in
+    repoquery|info|list|search) exit 0 ;;
+    install|update|upgrade|remove) echo "Nothing to do."; exit 0 ;;
+    *) exit 0 ;;
+esac
+EOF
+  chmod +x "$pkgdir"/usr/local/bin/dnf
+
+  # Create fake rpm wrapper for Veeam compatibility
+  cat > "$pkgdir"/usr/local/bin/rpm << EOF
+#!/bin/bash
+# Fake rpm for Veeam compatibility on Arch Linux
+case "\$1" in
+    -q|--query)
+        if [[ "\$*" == *"veeam"* ]]; then
+            echo "veeam-${pkgver}-1.el10.x86_64"
+        elif [[ "\$*" == *"kmod-blksnap"* ]]; then
+            exit 1
+        fi
+        exit 0 ;;
+    -qa)
+        if [[ "\$*" == *"veeam"* ]]; then
+            echo "veeam-${pkgver}-1.el10.x86_64"
+        fi
+        exit 0 ;;
+    -V|--verify) exit 0 ;;
+    *) exit 0 ;;
+esac
+EOF
+  chmod +x "$pkgdir"/usr/local/bin/rpm
+
+  # Create helper script to spoof Rocky Linux (needed for VBR registration)
+  cat > "$pkgdir"/usr/local/bin/veeam-spoof-os << 'EOF'
+#!/bin/bash
+# Temporarily spoof Rocky Linux for Veeam VBR registration
+set -e
+if [ "$EUID" -ne 0 ]; then echo "Run as root"; exit 1; fi
+
+cp /etc/os-release /etc/os-release.arch.bak
+cat > /etc/os-release << 'OSEOF'
+NAME="Rocky Linux"
+VERSION="10.1 (Red Quartz)"
+ID="rocky"
+ID_LIKE="rhel centos fedora"
+VERSION_ID="10.1"
+PLATFORM_ID="platform:el10"
+PRETTY_NAME="Rocky Linux 10.1 (Red Quartz)"
+ANSI_COLOR="0;32"
+CPE_NAME="cpe:/o:rocky:rocky:9::baseos"
+HOME_URL="https://rockylinux.org/"
+REDHAT_SUPPORT_PRODUCT="Rocky Linux"
+REDHAT_SUPPORT_PRODUCT_VERSION="10.1"
+OSEOF
+echo "Rocky Linux release 10.1 (Red Quartz)" > /etc/redhat-release
+echo "Rocky Linux release 10.1 (Red Quartz)" > /etc/system-release
+systemctl restart veeamservice
+echo "==> OS spoofed as Rocky Linux. Run veeam-restore-os after VBR registration."
+EOF
+  chmod +x "$pkgdir"/usr/local/bin/veeam-spoof-os
+
+  # Create helper script to restore Arch Linux os-release
+  cat > "$pkgdir"/usr/local/bin/veeam-restore-os << 'EOF'
+#!/bin/bash
+# Restore original Arch Linux os-release after Veeam VBR registration
+set -e
+if [ "$EUID" -ne 0 ]; then echo "Run as root"; exit 1; fi
+
+if [ -f /etc/os-release.arch.bak ]; then
+    mv /etc/os-release.arch.bak /etc/os-release
+    rm -f /etc/redhat-release /etc/system-release
+    systemctl restart veeamservice
+    echo "==> Restored Arch Linux os-release. Veeam will continue to work normally."
+else
+    echo "==> No backup found. Already using original os-release?"
+fi
+EOF
+  chmod +x "$pkgdir"/usr/local/bin/veeam-restore-os
+
+  # Enable FIPS module include in openssl.cnf
+  sed -i 's|# .include fipsmodule.cnf|.include /opt/veeam/veeamagentforlinux/openssl3/3.0.0/ssl/fipsmodule.cnf|' \
+    "$pkgdir"/opt/veeam/veeamagentforlinux/openssl3/3.0.0/ssl/openssl.cnf
+}

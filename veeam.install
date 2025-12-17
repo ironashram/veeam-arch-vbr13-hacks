@@ -1,0 +1,80 @@
+post_install() {
+    echo "==> Configuring Veeam Agent for Linux on Arch..."
+
+    # Create veeam group
+    groupadd -f veeam
+
+    # Generate FIPS module configuration for OpenSSL
+    if [ -f /opt/veeam/veeamagentforlinux/openssl3/3.0.0/bin/openssl ] && \
+       [ -f /opt/veeam/veeamagentforlinux/openssl3/3.0.0/lib/ossl-modules/fips.so ]; then
+        echo "==> Generating OpenSSL FIPS module configuration..."
+        /opt/veeam/veeamagentforlinux/openssl3/3.0.0/bin/openssl fipsinstall \
+            -out /opt/veeam/veeamagentforlinux/openssl3/3.0.0/ssl/fipsmodule.cnf \
+            -module /opt/veeam/veeamagentforlinux/openssl3/3.0.0/lib/ossl-modules/fips.so 2>/dev/null || true
+    fi
+
+    # Ensure /usr/local/bin is in PATH for veeam service
+    if ! grep -q '/usr/local/bin' /etc/environment 2>/dev/null; then
+        echo 'PATH="/usr/local/bin:/usr/bin:/bin"' >> /etc/environment
+    fi
+
+    # Add VERSION_ID to os-release if missing (Arch doesn't have it)
+    if ! grep -q '^VERSION_ID=' /etc/os-release; then
+        sed -i '/^ID=arch/a VERSION_ID="rolling"' /etc/os-release
+    fi
+
+    systemctl daemon-reload
+    systemctl enable veeamservice.service
+    systemctl restart veeamservice.service
+
+    echo "==> Veeam Agent installed successfully!"
+    echo ""
+    echo "    IMPORTANT: To register with VBR server, you need to temporarily spoof Rocky Linux:"
+    echo ""
+    echo "    1. Run: sudo veeam-spoof-os"
+    echo "    2. Run: sudo veeamconfig mode setVbrSettings --cfg <config.xml>"
+    echo "    3. Run: sudo veeam-restore-os"
+    echo ""
+    echo "    After registration, Veeam works fine with the real Arch os-release."
+}
+
+pre_upgrade() {
+    echo "==> Preparing Veeam Agent upgrade..."
+}
+
+post_upgrade() {
+    echo "==> Upgrading Veeam Agent..."
+
+    # Regenerate FIPS module configuration
+    if [ -f /opt/veeam/veeamagentforlinux/openssl3/3.0.0/bin/openssl ] && \
+       [ -f /opt/veeam/veeamagentforlinux/openssl3/3.0.0/lib/ossl-modules/fips.so ]; then
+        /opt/veeam/veeamagentforlinux/openssl3/3.0.0/bin/openssl fipsinstall \
+            -out /opt/veeam/veeamagentforlinux/openssl3/3.0.0/ssl/fipsmodule.cnf \
+            -module /opt/veeam/veeamagentforlinux/openssl3/3.0.0/lib/ossl-modules/fips.so 2>/dev/null || true
+    fi
+
+    systemctl daemon-reload
+    systemctl restart veeamservice.service
+    echo "==> Veeam Agent upgraded."
+}
+
+pre_remove() {
+    echo "==> Removing Veeam Agent..."
+    systemctl stop veeamservice.service
+    systemctl disable veeamservice.service
+    rm -rf /var/log/veeam
+
+    # Restore original os-release if backup exists
+    if [ -f /etc/os-release.arch.bak ]; then
+        mv /etc/os-release.arch.bak /etc/os-release
+        echo "==> Restored original /etc/os-release"
+    fi
+
+    # Remove fake release files if they exist
+    rm -f /etc/redhat-release /etc/system-release
+
+    # Remove FIPS module config
+    rm -f /opt/veeam/veeamagentforlinux/openssl3/3.0.0/ssl/fipsmodule.cnf
+
+    echo "==> Veeam Agent removed."
+}
