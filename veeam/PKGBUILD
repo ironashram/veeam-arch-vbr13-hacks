@@ -1,20 +1,20 @@
 # Maintainer: ironashram
-# Contributors: krnlsoft
+# Contributors: krnlsoft <krnlsoft 4t hotmail d0t it>
 # Contributors: theokonos
 # Contributors: Ted Sadler
 # Contributors: dekart811
 # Contributors: CodeImp
 
 pkgname=veeam
-pkgver=13.0.1.94
+pkgver=13.0.1.203
 pkgrel=1
 pkgdesc="Veeam Agent for Linux"
 arch=('x86_64')
-url=https://repository.veeam.com/backup/linux/agent
+url=https://s3.m1k.cloud/tools/
 install=${pkgname}.install
 license=('custom')
 depends=('ncurses' 'lvm2' 'fuse' 'mlocate' 'veeamblksnap-dkms')
-source=( "veeam-13.0.1.94-1.el10.x86_64.rpm" "veeam-libs-13.0.1.94-1.x86_64.rpm" )
+source=("${url}/$pkgname-$pkgver-1.el10.x86_64.rpm" "${url}/$pkgname-libs-$pkgver-1.x86_64.rpm" )
 sha256sums=('SKIP'
             'SKIP')
 noextract=("$pkgname-$pkgver-1.el10.x86_64.rpm")

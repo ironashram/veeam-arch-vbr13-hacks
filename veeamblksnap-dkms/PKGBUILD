@@ -1,0 +1,38 @@
+# Maintainer: ironashram
+# Contributors: krnlsoft <krnlsoft 4t hotmail d0t it>
+
+_pkgbase=blksnap
+_pkgname=veeam${_pkgbase}
+pkgname=${_pkgname}-dkms
+pkgver=13.0.1.203
+pkgrel=1
+pkgdesc="Veeam Agent for Linux kernel modules (DKMS)"
+arch=('x86_64')
+url="https://s3.m1k.cloud/tools/"
+license=('GPL')
+depends=('dkms')
+conflicts=("${_pkgbase}")
+source=("${url}/blksnap-${pkgver}-${pkgrel}.noarch.rpm"
+        'dkms.conf')
+sha256sums=('SKIP'
+  '21a182149740160df2d3475fad4142a08d8fc850e0234d32922472f7e4aa66fc')
+
+package() {
+  local target="${pkgdir}/usr/src/${_pkgname}-${pkgver}"
+  mkdir -p "${target}"
+
+  # Copy sources (including Makefile)
+  cp -r "${srcdir}/usr/src/${_pkgbase}-${pkgver}/." "${target}/"
+
+  # Copy dkms.conf
+  install -Dm644 dkms.conf "${target}/dkms.conf"
+
+  # Set name and version
+  sed -e "s/@_PKGBASE@/${_pkgname}/" \
+      -e "s/@PKGVER@/${pkgver}/" \
+      -i "${target}/dkms.conf"
+
+  # Install modprobe config so bdevfilter is loaded before veeamblksnap
+  install -dm755 "${pkgdir}/usr/lib/modprobe.d"
+  echo "softdep veeamblksnap pre: bdevfilter" > "${pkgdir}/usr/lib/modprobe.d/veeamblksnap.conf"
+}
