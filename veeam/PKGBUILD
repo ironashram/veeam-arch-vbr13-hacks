@@ -12,7 +12,7 @@ pkgrel=1
 pkgdesc="Veeam Agent for Linux"
 arch=('x86_64')
 url=https://s3.m1k.cloud/tools/
-install=${pkgname}.install
+install=${_pkgname}.install
 license=('custom')
 depends=('ncurses' 'lvm2' 'fuse' 'mlocate')
 optdepends=('veeamblksnap-arch-dkms')
@@ -20,7 +20,7 @@ conflicts=('veeam')
 source=("${url}/$_pkgname-$pkgver-1.el10.x86_64.rpm" "${url}/$_pkgname-libs-$pkgver-1.x86_64.rpm" )
 sha256sums=('SKIP'
             'SKIP')
-noextract=("$pkgname-$pkgver-1.el10.x86_64.rpm")
+noextract=("$_pkgname-$pkgver-1.el10.x86_64.rpm")
 backup=('etc/veeam/veeam.ini' 'usr/share/veeam/lpb_scheme.sql' 'usr/share/veeam/db_upgrade.sql' 'usr/share/veeam/db_scheme.sql' 'var/lib/veeam/veeam_db.sqlite' 'var/lib/veeam/veeam_db.sqlite-shm' 'var/lib/veeam/veeam_db.sqlite-wal')
 
 package() {
