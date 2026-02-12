@@ -3,7 +3,7 @@
 
 _pkgbase=blksnap
 _pkgname=veeam${_pkgbase}
-pkgname=${_pkgname}-dkms
+pkgname=${_pkgname}-arch-dkms
 pkgver=13.0.1.203
 pkgrel=1
 pkgdesc="Veeam Agent for Linux kernel modules (DKMS)"

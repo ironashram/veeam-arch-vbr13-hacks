@@ -5,7 +5,8 @@
 # Contributors: dekart811
 # Contributors: CodeImp
 
-pkgname=veeam
+pkgname=veeam-agent-arch
+_pkgname=veeam
 pkgver=13.0.1.203
 pkgrel=1
 pkgdesc="Veeam Agent for Linux"
@@ -13,21 +14,23 @@ arch=('x86_64')
 url=https://s3.m1k.cloud/tools/
 install=${pkgname}.install
 license=('custom')
-depends=('ncurses' 'lvm2' 'fuse' 'mlocate' 'veeamblksnap-dkms')
-source=("${url}/$pkgname-$pkgver-1.el10.x86_64.rpm" "${url}/$pkgname-libs-$pkgver-1.x86_64.rpm" )
+depends=('ncurses' 'lvm2' 'fuse' 'mlocate')
+optdepends=('veeamblksnap-arch-dkms')
+conflicts=('veeam')
+source=("${url}/$_pkgname-$pkgver-1.el10.x86_64.rpm" "${url}/$_pkgname-libs-$pkgver-1.x86_64.rpm" )
 sha256sums=('SKIP'
             'SKIP')
 noextract=("$pkgname-$pkgver-1.el10.x86_64.rpm")
 backup=('etc/veeam/veeam.ini' 'usr/share/veeam/lpb_scheme.sql' 'usr/share/veeam/db_upgrade.sql' 'usr/share/veeam/db_scheme.sql' 'var/lib/veeam/veeam_db.sqlite' 'var/lib/veeam/veeam_db.sqlite-shm' 'var/lib/veeam/veeam_db.sqlite-wal')
 
 package() {
-  bsdtar -xf $pkgname-$pkgver-1.el10.x86_64.rpm -C "$pkgdir" -s /sbin/bin/ -s '|lib/systemd|usr/lib/systemd|'
-  bsdtar -xf $pkgname-libs-$pkgver-1.x86_64.rpm -C "$pkgdir" -s /sbin/bin/ -s '|lib/systemd|usr/lib/systemd|'
+  bsdtar -xf $_pkgname-$pkgver-1.el10.x86_64.rpm -C "$pkgdir" -s /sbin/bin/ -s '|lib/systemd|usr/lib/systemd|'
+  bsdtar -xf $_pkgname-libs-$pkgver-1.x86_64.rpm -C "$pkgdir" -s /sbin/bin/ -s '|lib/systemd|usr/lib/systemd|'
   sed -i -e 's|/var/run|/run|' -e 's|/sbin|/bin|' "$pkgdir"/usr/lib/systemd/system/veeamservice.service
   rm -rf "$pkgdir"/usr/lib/.build-id/
-  install -d  "$pkgdir"/usr/share/licenses/$pkgname/
-  ln -s ../../doc/$pkgname/EULA "$pkgdir"/usr/share/licenses/$pkgname/
-  ln -s ../../doc/$pkgname/3rdPartyNotices.txt "$pkgdir"/usr/share/licenses/$pkgname/
+  install -d  "$pkgdir"/usr/share/licenses/$_pkgname/
+  ln -s ../../doc/$_pkgname/EULA "$pkgdir"/usr/share/licenses/$_pkgname/
+  ln -s ../../doc/$_pkgname/3rdPartyNotices.txt "$pkgdir"/usr/share/licenses/$_pkgname/
 
   # Create fake dnf wrapper for Veeam compatibility (expects RHEL-like package manager)
   install -d "$pkgdir"/usr/local/bin
@@ -49,14 +52,14 @@ EOF
 case "\$1" in
     -q|--query)
         if [[ "\$*" == *"veeam"* ]]; then
-            echo "veeam-${pkgver}-1.el10.x86_64"
+            echo "$_pkgname-${pkgver}-1.el10.x86_64"
         elif [[ "\$*" == *"kmod-blksnap"* ]]; then
             exit 1
         fi
         exit 0 ;;
     -qa)
         if [[ "\$*" == *"veeam"* ]]; then
-            echo "veeam-${pkgver}-1.el10.x86_64"
+            echo "$_pkgname-${pkgver}-1.el10.x86_64"
         fi
         exit 0 ;;
     -V|--verify) exit 0 ;;
